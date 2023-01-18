@@ -6,7 +6,7 @@ pub use crate::raw_message::{RawMessage, RawMessageDescription};
 #[doc(hidden)]
 pub use crate::rosmsg::RosMsg;
 pub use crate::singleton::*;
-pub use crate::tcpros::{Client, ClientResponse, Message, ServicePair};
+pub use crate::tcpros::{Client, ClientResponse, Message, ServicePair, ServiceResult};
 pub use dynamic_msg::DynamicMsg;
 pub use ros_message::{Duration, MessageValue as MsgMessage, Time, Value as MsgValue};
 #[doc(hidden)]

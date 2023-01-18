@@ -7,6 +7,7 @@ use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use error_chain::bail;
 use log::error;
 use std::collections::HashMap;
+use std::convert::TryInto;
 use std::io;
 use std::net::{TcpListener, TcpStream};
 use std::sync::{atomic, Arc};
@@ -165,9 +166,14 @@ where
     // Receive request from client
     // TODO: validate message length
     let _length = stream.read_u32::<LittleEndian>();
+
+    let mut buf = Vec::<u8>::new();
+    buf.resize(_length.unwrap().try_into().unwrap(), 0);
+    stream.read_exact(&mut buf).unwrap();
+
     // Break out of loop in case of failure to read request
     // TODO: handle retained connections
-    if let Ok(req) = RosMsg::decode(&mut stream) {
+    if let Ok(req) = RosMsg::decode(&mut buf.as_slice()) {
         // Call function that handles request and returns response
         match handler(req) {
             Ok(res) => {
@@ -193,10 +199,11 @@ where
             }
         };
     }
-
-    // Upon failure to read request, send client failure message
-    // This can be caused by actual issues or by the client stopping the connection
-    stream.write_u8(0)?;
-    encode_str("Failed to parse passed arguments", &mut stream)?;
+    else {
+        // Upon failure to read request, send client failure message
+        // This can be caused by actual issues or by the client stopping the connection
+        stream.write_u8(0)?;
+        encode_str("Failed to parse passed arguments", &mut stream)?;
+    }
     Ok(())
 }

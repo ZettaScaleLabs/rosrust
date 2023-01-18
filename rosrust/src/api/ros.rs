@@ -75,7 +75,7 @@ impl Ros {
             ros.clock = ros_clock;
         }
 
-        ros.logger = Some(ros.publish("/rosout", 100)?);
+        //ros.logger = Some(ros.publish("/rosout/", 100)?);
 
         Ok(ros)
     }
