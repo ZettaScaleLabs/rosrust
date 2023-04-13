@@ -202,7 +202,7 @@ impl From<TopicTuple> for Topic {
     }
 }
 
-#[derive(Debug,Clone)]
+#[derive(Debug,Clone,PartialEq,Eq,Hash)]
 pub struct Topic {
     pub name: String,
     pub datatype: String,
