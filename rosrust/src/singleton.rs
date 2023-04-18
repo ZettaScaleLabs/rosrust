@@ -46,7 +46,7 @@ pub fn try_init_with_options(name: &str, capture_sigint: bool) -> Result<()> {
     if ros.is_some() {
         bail!(ErrorKind::MultipleInitialization);
     }
-    let client = Ros::new(name)?;
+    let client = Ros::new(name, "http://localhost:11311/")?;
     if capture_sigint {
         let shutdown_sender = client.shutdown_sender();
         ctrlc::set_handler(move || {
