@@ -26,7 +26,7 @@ struct Struct3 {
 }
 
 fn global_init() -> util::ChildProcessTerminator {
-    let roscore = util::run_roscore_for(util::Language::None, util::Feature::Parameters);
+    let roscore = util::run_roscore_for(util::TestVariant::RosparamGetSet);
     rosrust::init("rosparam_tester");
     roscore
 }
@@ -45,6 +45,8 @@ fn simple_loopback_works() {
     let parameter = rosrust::param("test1").unwrap();
     parameter.set(&String::from("foo")).unwrap();
     assert_eq!("foo", parameter.get::<String>().unwrap());
+    parameter.set(&String::from("bar")).unwrap();
+    assert_eq!("bar", parameter.get::<String>().unwrap());
 }
 
 #[test]
