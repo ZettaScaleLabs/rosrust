@@ -45,12 +45,12 @@ pub struct Ros {
 }
 
 impl Ros {
-    pub fn new(name: &str, master_uri: &str) -> Result<Ros> {
+    pub fn new(name: &str) -> Result<Ros> {
         let mut namespace = resolve::namespace();
         if !namespace.starts_with('/') {
             namespace = format!("/{}", namespace);
         }
-        let master_uri = master_uri.to_string();
+        let master_uri = resolve::master();
         let hostname = resolve::hostname();
         let name = resolve::name(name);
         let mut ros = Ros::new_raw(&master_uri, &hostname, &namespace, &name)?;
@@ -88,7 +88,7 @@ impl Ros {
         Ok(ros)
     }
 
-    fn new_raw(master_uri: &str, hostname: &str, namespace: &str, name: &str) -> Result<Ros> {
+    pub fn new_raw(master_uri: &str, hostname: &str, namespace: &str, name: &str) -> Result<Ros> {
         let namespace = namespace.trim_end_matches('/');
 
         if name.contains('/') {
@@ -402,10 +402,6 @@ impl Ros {
 
     pub fn log(&self, level: i8, msg: String, file: &str, line: u32) {
         self.log_to_terminal(level, &msg, file, line);
-        let logger = &match self.logger {
-            Some(ref v) => v,
-            None => return,
-        };
         let topics = self.slave.publications.get_topic_names();
         let message = Log {
             header: Header::default(),
