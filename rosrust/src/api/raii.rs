@@ -153,10 +153,13 @@ impl Subscriber {
             id,
         }));
 
-        let publishers = info
+        let mut publishers = info
             .interactor
             .master
             .register_subscriber(name, &T::msg_type())?;
+
+        // find and remove publishers belonging to ourselves to support isolation!
+        publishers.retain(|e| { !e.eq(&info.interactor.slave.uri()) });
 
         if let Err(err) = info
             .interactor

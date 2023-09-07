@@ -17,7 +17,7 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 
 pub struct Slave {
-    name: String,
+    pub name: String,
     uri: String,
     pub publications: publications::PublicationsTracker,
     pub subscriptions: subscriptions::SubscriptionsTracker,
@@ -39,9 +39,12 @@ impl Slave {
     ) -> Result<Slave> {
         use std::net::ToSocketAddrs;
 
+        let uri = Arc::new(Mutex::new(String::default()));
+        let mut uri_guard = uri.lock().unwrap();
+
         let (shutdown_tx, shutdown_rx) = kill::channel(kill::KillMode::Sync);
         let handler =
-            SlaveHandler::new(master_uri, hostname, name, param_cache, shutdown_tx.clone());
+            SlaveHandler::new(master_uri, hostname, name, param_cache, shutdown_tx.clone(), uri.clone());
         let publications = handler.publications.clone();
         let subscriptions = handler.subscriptions.clone();
         let services = Arc::clone(&handler.services);
@@ -56,6 +59,9 @@ impl Slave {
 
         let port = bound_handler.local_addr().port();
         let uri = format!("http://{}:{}/", hostname, port);
+
+        *uri_guard = uri.clone();
+        drop(uri_guard);
 
         thread::spawn(move || {
             loop {
