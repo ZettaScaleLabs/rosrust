@@ -255,6 +255,15 @@ impl Ros {
         T: ServicePair,
         F: Fn(T::Request) -> ServiceResult<T::Response> + Send + Sync + 'static,
     {
+        let description = RawMessageDescription::from_message::<T>();
+        self.service_with_description::<T, F>(service, handler, description)
+    }
+
+    pub fn service_with_description<T, F>(&self, service: &str, handler: F, description: RawMessageDescription) -> Result<Service>
+    where
+        T: ServicePair,
+        F: Fn(T::Request) -> ServiceResult<T::Response> + Send + Sync + 'static,
+    {
         let name = self.resolver.translate(service)?;
         Service::new::<T, F>(
             Arc::clone(&self.master),
@@ -263,6 +272,7 @@ impl Ros {
             &self.bind_address,
             &name,
             handler,
+            description,
         )
     }
 
@@ -290,6 +300,7 @@ impl Ros {
             queue_size,
             callback,
             |_: HashMap<String, String>| (),
+            None
         )
     }
 
@@ -299,6 +310,7 @@ impl Ros {
         mut queue_size: usize,
         on_message: F,
         on_connect: G,
+        description: Option<RawMessageDescription>,
     ) -> Result<Subscriber>
     where
         T: Message,
@@ -315,6 +327,7 @@ impl Ros {
             &name,
             queue_size,
             CallbackSubscriptionHandler::new(on_message, on_connect),
+            description
         )
     }
 
@@ -323,6 +336,7 @@ impl Ros {
         topic: &str,
         mut queue_size: usize,
         handler: H,
+        description: Option<RawMessageDescription>
     ) -> Result<Subscriber>
     where
         T: Message,
@@ -338,6 +352,7 @@ impl Ros {
             &name,
             queue_size,
             handler,
+            description
         )
     }
 

@@ -2,6 +2,7 @@ use super::error::{ErrorKind, Result};
 use super::header;
 use super::util::tcpconnection;
 use super::{ServicePair, ServiceResult};
+use crate::RawMessageDescription;
 use crate::rosmsg::{encode_str, RosMsg};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use error_chain::bail;
@@ -34,6 +35,7 @@ impl Service {
         service: &str,
         node_name: &str,
         handler: F,
+        description: RawMessageDescription,
     ) -> Result<Service>
     where
         T: ServicePair,
@@ -45,16 +47,18 @@ impl Service {
 
         let service_exists = Arc::new(atomic::AtomicBool::new(true));
 
+        let description = Arc::new(description);
         let iterate_handler = {
             let service_exists = service_exists.clone();
             let service = String::from(service);
             let node_name = String::from(node_name);
             let handler = Arc::new(handler);
+            let description = Arc::clone(&description);
             move |stream: TcpStream| {
                 if !service_exists.load(atomic::Ordering::SeqCst) {
                     return tcpconnection::Feedback::StopAccepting;
                 }
-                consume_client::<T, _, _>(&service, &node_name, Arc::clone(&handler), stream);
+                consume_client::<T, _, _>(&service, &node_name, Arc::clone(&handler), stream, Arc::clone(&description));
                 tcpconnection::Feedback::AcceptNextStream
             }
         };
@@ -63,7 +67,7 @@ impl Service {
 
         Ok(Service {
             api,
-            msg_type: T::msg_type(),
+            msg_type: description.msg_type.clone(),
             service: String::from(service),
             exists: service_exists,
         })
@@ -75,14 +79,14 @@ enum RequestType {
     Action,
 }
 
-fn consume_client<T, U, F>(service: &str, node_name: &str, handler: Arc<F>, mut stream: U)
+fn consume_client<T, U, F>(service: &str, node_name: &str, handler: Arc<F>, mut stream: U, description: Arc<RawMessageDescription>)
 where
     T: ServicePair,
     U: std::io::Read + std::io::Write + Send + 'static,
     F: Fn(T::Request) -> ServiceResult<T::Response> + Send + Sync + 'static,
 {
     // Service request starts by exchanging connection headers
-    match exchange_headers::<T, _>(&mut stream, service, node_name) {
+    match exchange_headers::<_>(&mut stream, service, node_name, &description) {
         Err(err) => {
             // Connection can be closed when a client checks for a service.
             if !err.is_closed_connection() {
@@ -98,19 +102,19 @@ where
     }
 }
 
-fn exchange_headers<T, U>(stream: &mut U, service: &str, node_name: &str) -> Result<RequestType>
+fn exchange_headers<U>(stream: &mut U, service: &str, node_name: &str, description: &RawMessageDescription) -> Result<RequestType>
 where
-    T: ServicePair,
     U: std::io::Write + std::io::Read,
 {
-    let req_type = read_request::<T, U>(stream, service)?;
-    write_response::<T, U>(stream, node_name)?;
+    let req_type = read_request::<U>(stream, service, description)?;
+    write_response::<U>(stream, node_name, description)?;
     Ok(req_type)
 }
 
-fn read_request<T: ServicePair, U: std::io::Read>(
+fn read_request<U: std::io::Read>(
     stream: &mut U,
     service: &str,
+    description: &RawMessageDescription,
 ) -> Result<RequestType> {
     let fields = header::decode(stream)?;
     header::match_field(&fields, "service", service)?;
@@ -120,19 +124,18 @@ fn read_request<T: ServicePair, U: std::io::Read>(
     if header::match_field(&fields, "probe", "1").is_ok() {
         return Ok(RequestType::Probe);
     }
-    header::match_field(&fields, "md5sum", &T::md5sum())?;
+    header::match_field(&fields, "md5sum", &description.md5sum)?;
     Ok(RequestType::Action)
 }
 
-fn write_response<T, U>(stream: &mut U, node_name: &str) -> Result<()>
+fn write_response<U>(stream: &mut U, node_name: &str, description: &RawMessageDescription) -> Result<()>
 where
-    T: ServicePair,
     U: std::io::Write,
 {
     let mut fields = HashMap::<String, String>::new();
     fields.insert(String::from("callerid"), String::from(node_name));
-    fields.insert(String::from("md5sum"), T::md5sum());
-    fields.insert(String::from("type"), T::msg_type());
+    fields.insert(String::from("md5sum"), description.md5sum.clone());
+    fields.insert(String::from("type"), description.msg_type.clone());
     header::encode(stream, &fields)?;
     Ok(())
 }

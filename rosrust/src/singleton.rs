@@ -189,22 +189,24 @@ pub fn subscribe_with_ids_and_headers<T, F, G>(
     queue_size: usize,
     on_message: F,
     on_connect: G,
+    description: Option<RawMessageDescription>,
 ) -> Result<Subscriber>
 where
     T: Message,
     F: Fn(T, &str) + Send + 'static,
     G: Fn(HashMap<String, String>) + Send + 'static,
 {
-    ros!().subscribe_with_ids_and_headers::<T, F, G>(topic, queue_size, on_message, on_connect)
+    ros!().subscribe_with_ids_and_headers::<T, F, G>(topic, queue_size, on_message, on_connect, description)
 }
 
 #[inline]
-pub fn subscribe_with<T, H>(topic: &str, queue_size: usize, handler: H) -> Result<Subscriber>
+pub fn subscribe_with<T, H>(topic: &str, queue_size: usize, handler: H,
+    description: Option<RawMessageDescription>) -> Result<Subscriber>
 where
     T: Message,
     H: SubscriptionHandler<T>,
 {
-    ros!().subscribe_with::<T, H>(topic, queue_size, handler)
+    ros!().subscribe_with::<T, H>(topic, queue_size, handler, description)
 }
 
 #[inline]

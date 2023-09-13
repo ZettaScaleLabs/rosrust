@@ -139,12 +139,14 @@ impl Subscriber {
         name: &str,
         queue_size: usize,
         handler: H,
+        description: Option<RawMessageDescription>,
     ) -> Result<Self>
     where
         T: Message,
         H: SubscriptionHandler<T>,
     {
-        let id = slave.add_subscription::<T, H>(name, queue_size, handler)?;
+        let description = description.unwrap_or_else(|| {RawMessageDescription::from_message::<T>()});
+        let id = slave.add_subscription::<T, H>(name, queue_size, handler, description.clone())?;
 
         let info = Arc::new(InteractorRaii::new(SubscriberInfo {
             master,
@@ -156,7 +158,7 @@ impl Subscriber {
         let mut publishers = info
             .interactor
             .master
-            .register_subscriber(name, &T::msg_type())?;
+            .register_subscriber(name, &description.msg_type)?;
 
         // find and remove publishers belonging to ourselves to support isolation!
         publishers.retain(|e| { !e.eq(&info.interactor.slave.uri()) });
@@ -219,12 +221,13 @@ impl Service {
         bind_address: &str,
         name: &str,
         handler: F,
+        description: RawMessageDescription,
     ) -> Result<Self>
     where
         T: ServicePair,
         F: Fn(T::Request) -> ServiceResult<T::Response> + Send + Sync + 'static,
     {
-        let api = slave.add_service::<T, F>(hostname, bind_address, name, handler)?;
+        let api = slave.add_service::<T, F>(hostname, bind_address, name, handler, description)?;
 
         let raii = Arc::new(InteractorRaii::new(ServiceInfo {
             master,

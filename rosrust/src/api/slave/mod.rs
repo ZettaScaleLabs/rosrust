@@ -105,6 +105,7 @@ impl Slave {
         bind_address: &str,
         service: &str,
         handler: F,
+        description: RawMessageDescription,
     ) -> SerdeResult<String>
     where
         T: ServicePair,
@@ -123,7 +124,7 @@ impl Slave {
             }
             Entry::Vacant(entry) => {
                 let service =
-                    Service::new::<T, _>(hostname, bind_address, 0, service, &self.name, handler)?;
+                    Service::new::<T, _>(hostname, bind_address, 0, service, &self.name, handler, description)?;
                 let api = service.api.clone();
                 entry.insert(service);
                 Ok(api)
@@ -162,13 +163,14 @@ impl Slave {
         topic: &str,
         queue_size: usize,
         handler: H,
+        description: RawMessageDescription,
     ) -> Result<usize>
     where
         T: Message,
         H: SubscriptionHandler<T>,
     {
         self.subscriptions
-            .add(&self.name, topic, queue_size, handler)
+            .add(&self.name, topic, queue_size, handler, description)
     }
 
     #[inline]

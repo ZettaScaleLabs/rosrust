@@ -1,6 +1,7 @@
 use super::error::{ErrorKind, Result, ResultExt};
 use super::header::{decode, encode};
 use super::{ServicePair, ServiceResult};
+use crate::RawMessageDescription;
 use crate::api::Master;
 use crate::rosmsg::RosMsg;
 use crate::util::FAILED_TO_LOCK;
@@ -147,26 +148,36 @@ impl<T: ServicePair> Client<T> {
         }
     }
 
-    fn probe_inner(&self, timeout: std::time::Duration) -> Result<()> {
+    fn probe_inner(&self, timeout: std::time::Duration, description: RawMessageDescription) -> Result<HashMap<String, String>> {
         let mut stream = connect_to_tcp_attempt(&self.uri_cache, Some(timeout))?;
-        exchange_probe_headers(&mut stream, &self.info.caller_id, &self.info.service)?;
-        Ok(())
+        exchange_probe_headers(&mut stream, &self.info.caller_id, &self.info.service, description)
     }
 
-    pub fn probe(&self, timeout: std::time::Duration) -> Result<()> {
-        let probe_result = self.probe_inner(timeout);
+    pub fn probe_with_description(&self, timeout: std::time::Duration, description: RawMessageDescription) -> Result<HashMap<String, String>> {
+        let probe_result = self.probe_inner(timeout, description);
         if probe_result.is_err() {
             self.uri_cache.clear();
         }
         probe_result
     }
 
+    pub fn probe(&self, timeout: std::time::Duration) -> Result<HashMap<String, String>> {
+        let description = RawMessageDescription::from_message::<T>();
+        self.probe_with_description(timeout, description)
+    }
+
     pub fn req(&self, args: &T::Request) -> Result<ServiceResult<T::Response>> {
+        let description = RawMessageDescription::from_message::<T>();
+        self.req_with_description(args, description)
+    }
+
+    pub fn req_with_description(&self, args: &T::Request, description: RawMessageDescription) -> Result<ServiceResult<T::Response>> {
         Self::request_body(
             args,
             &self.uri_cache,
             &self.info.caller_id,
             &self.info.service,
+            description
         )
     }
 
@@ -175,7 +186,8 @@ impl<T: ServicePair> Client<T> {
         let uri_cache = Arc::clone(&self.uri_cache);
         ClientResponse {
             handle: thread::spawn(move || {
-                Self::request_body(&args, &uri_cache, &info.caller_id, &info.service)
+                let description = RawMessageDescription::from_message::<T>();
+                Self::request_body(&args, &uri_cache, &info.caller_id, &info.service, description)
             }),
         }
     }
@@ -185,12 +197,13 @@ impl<T: ServicePair> Client<T> {
         uri_cache: &UriCache,
         caller_id: &str,
         service: &str,
+        description: RawMessageDescription,
     ) -> Result<ServiceResult<T::Response>> {
         let mut stream = connect_to_tcp_with_multiple_attempts(uri_cache, 15)
             .chain_err(|| ErrorKind::ServiceConnectionFail(service.into()))?;
 
         // Service request starts by exchanging connection headers
-        exchange_headers::<T, _>(&mut stream, caller_id, service)?;
+        exchange_headers::<_>(&mut stream, caller_id, service, description)?;
 
         let mut writer = io::Cursor::new(Vec::with_capacity(128));
         // skip the first 4 bytes that will contain the message length
@@ -242,21 +255,20 @@ fn read_verification_byte<R: std::io::Read>(reader: &mut R) -> std::io::Result<b
     reader.read_u8().map(|v| v != 0)
 }
 
-fn write_request<T, U>(mut stream: &mut U, caller_id: &str, service: &str) -> Result<()>
+fn write_request<U>(mut stream: &mut U, caller_id: &str, service: &str, description: RawMessageDescription) -> Result<()>
 where
-    T: ServicePair,
     U: std::io::Write,
 {
     let mut fields = HashMap::<String, String>::new();
     fields.insert(String::from("callerid"), String::from(caller_id));
     fields.insert(String::from("service"), String::from(service));
-    fields.insert(String::from("md5sum"), T::md5sum());
-    fields.insert(String::from("type"), T::msg_type());
+    fields.insert(String::from("md5sum"), description.md5sum);
+    fields.insert(String::from("type"), description.msg_type);
     encode(&mut stream, &fields)?;
     Ok(())
 }
 
-fn write_probe_request<U>(mut stream: &mut U, caller_id: &str, service: &str) -> Result<()>
+fn write_probe_request<U>(mut stream: &mut U, caller_id: &str, service: &str, description: RawMessageDescription) -> Result<()>
 where
     U: std::io::Write,
 {
@@ -264,12 +276,12 @@ where
     fields.insert(String::from("probe"), String::from("1"));
     fields.insert(String::from("callerid"), String::from(caller_id));
     fields.insert(String::from("service"), String::from(service));
-    fields.insert(String::from("md5sum"), String::from("*"));
+    fields.insert(String::from("md5sum"), description.md5sum);
     encode(&mut stream, &fields)?;
     Ok(())
 }
 
-fn read_response<U>(mut stream: &mut U) -> Result<()>
+fn read_response<U>(mut stream: &mut U) -> Result<HashMap<String, String>>
 where
     U: std::io::Read,
 {
@@ -277,22 +289,21 @@ where
     if fields.get("callerid").is_none() {
         bail!(ErrorKind::HeaderMissingField("callerid".into()));
     }
-    Ok(())
+    Ok(fields)
 }
 
-fn exchange_headers<T, U>(stream: &mut U, caller_id: &str, service: &str) -> Result<()>
+fn exchange_headers<U>(stream: &mut U, caller_id: &str, service: &str, description: RawMessageDescription) -> Result<HashMap<String, String>>
 where
-    T: ServicePair,
     U: std::io::Write + std::io::Read,
 {
-    write_request::<T, U>(stream, caller_id, service)?;
+    write_request::<U>(stream, caller_id, service, description)?;
     read_response::<U>(stream)
 }
 
-fn exchange_probe_headers<U>(stream: &mut U, caller_id: &str, service: &str) -> Result<()>
+fn exchange_probe_headers<U>(stream: &mut U, caller_id: &str, service: &str, description: RawMessageDescription) -> Result<HashMap<String, String>>
 where
     U: std::io::Write + std::io::Read,
 {
-    write_probe_request::<U>(stream, caller_id, service)?;
+    write_probe_request::<U>(stream, caller_id, service, description)?;
     read_response::<U>(stream)
 }

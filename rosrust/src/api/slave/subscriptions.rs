@@ -1,7 +1,7 @@
 use crate::api::error::{self, ErrorKind, Result};
 use crate::tcpros::{SubscriberRosConnection, Topic};
 use crate::util::FAILED_TO_LOCK;
-use crate::{Message, SubscriptionHandler};
+use crate::{Message, SubscriptionHandler, RawMessageDescription};
 use error_chain::bail;
 use log::error;
 use std::collections::{BTreeSet, HashMap};
@@ -51,40 +51,42 @@ impl SubscriptionsTracker {
             .collect()
     }
 
-    pub fn add<T, H>(&self, name: &str, topic: &str, queue_size: usize, handler: H) -> Result<usize>
+    pub fn add<T, H>(&self, name: &str, topic: &str, queue_size: usize, handler: H, 
+        description: RawMessageDescription) -> Result<usize>
     where
         T: Message,
         H: SubscriptionHandler<T>,
     {
-        let msg_definition = T::msg_definition();
-        let msg_type = T::msg_type();
-        let md5sum = T::md5sum();
         let mut mapping = self.mapping.lock().expect(FAILED_TO_LOCK);
-        let connection = mapping.entry(String::from(topic)).or_insert_with(|| {
-            SubscriberRosConnection::new(
-                name,
-                topic,
-                msg_definition,
-                msg_type.clone(),
-                md5sum.clone(),
-            )
-        });
-        let connection_topic = connection.get_topic();
-        if !header_matches(&connection_topic.msg_type, &msg_type)
-            || !header_matches(&connection_topic.md5sum, &md5sum)
-        {
-            error!(
-                "Attempted to connect to {} topic '{}' with message type {}",
-                connection_topic.msg_type, topic, msg_type
-            );
-            Err(ErrorKind::MismatchedType(
-                topic.into(),
-                connection_topic.msg_type.clone(),
-                msg_type,
-            )
-            .into())
-        } else {
-            Ok(connection.add_subscriber(queue_size, handler))
+        
+        match mapping.entry(String::from(topic)) {
+            std::collections::hash_map::Entry::Occupied(mut v) => {
+                let connection_topic = v.get().get_topic();
+                if !header_matches(&connection_topic.msg_type, &description.msg_type)
+                    || !header_matches(&connection_topic.md5sum, &description.md5sum)
+                {
+                    error!(
+                        "Attempted to connect to {} topic '{}' with message type {}",
+                        connection_topic.msg_type, topic, description.msg_type.clone()
+                    );
+                    return Err(ErrorKind::MismatchedType(
+                        topic.into(),
+                        connection_topic.msg_type.clone(),
+                        description.msg_type,
+                    )
+                    .into());
+                }
+                Ok(v.get_mut().add_subscriber(queue_size, handler))
+            },
+            std::collections::hash_map::Entry::Vacant(e) => {
+                Ok(e.insert(SubscriberRosConnection::new(
+                    name,
+                    topic,
+                    description.msg_definition,
+                    description.msg_type,
+                    description.md5sum,
+                )).add_subscriber(queue_size, handler))
+            },
         }
     }
 
