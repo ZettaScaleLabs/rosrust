@@ -49,6 +49,7 @@ impl PublicationsTracker {
         queue_size: usize,
         caller_id: &str,
         message_description: RawMessageDescription,
+        on_handshake: Option<Box<dyn Fn(&HashMap<String, String>) -> bool + Send + Sync>>,
     ) -> error::tcpros::Result<PublisherStream<T>> {
         use std::collections::hash_map::Entry;
         match self
@@ -67,6 +68,7 @@ impl PublicationsTracker {
                     queue_size,
                     caller_id,
                     message_description.clone(),
+                    on_handshake,
                 )?;
                 entry
                     .insert(publisher)

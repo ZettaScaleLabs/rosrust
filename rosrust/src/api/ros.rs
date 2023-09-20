@@ -31,7 +31,7 @@ use xml_rpc;
 use yaml_rust::{Yaml, YamlLoader};
 
 pub struct Ros {
-    master: Arc<Master>,
+    pub master: Arc<Master>,
     slave: Arc<Slave>,
     param_cache: ParamCache,
     hostname: String,
@@ -259,7 +259,12 @@ impl Ros {
         self.service_with_description::<T, F>(service, handler, description)
     }
 
-    pub fn service_with_description<T, F>(&self, service: &str, handler: F, description: RawMessageDescription) -> Result<Service>
+    pub fn service_with_description<T, F>(
+        &self,
+        service: &str,
+        handler: F,
+        description: RawMessageDescription,
+    ) -> Result<Service>
     where
         T: ServicePair,
         F: Fn(T::Request) -> ServiceResult<T::Response> + Send + Sync + 'static,
@@ -300,7 +305,7 @@ impl Ros {
             queue_size,
             callback,
             |_: HashMap<String, String>| (),
-            None
+            None,
         )
     }
 
@@ -327,7 +332,7 @@ impl Ros {
             &name,
             queue_size,
             CallbackSubscriptionHandler::new(on_message, on_connect),
-            description
+            description,
         )
     }
 
@@ -336,7 +341,7 @@ impl Ros {
         topic: &str,
         mut queue_size: usize,
         handler: H,
-        description: Option<RawMessageDescription>
+        description: Option<RawMessageDescription>,
     ) -> Result<Subscriber>
     where
         T: Message,
@@ -352,7 +357,7 @@ impl Ros {
             &name,
             queue_size,
             handler,
-            description
+            description,
         )
     }
 
@@ -360,7 +365,7 @@ impl Ros {
     where
         T: Message,
     {
-        self.publish_common(topic, queue_size, None)
+        self.publish_common(topic, queue_size, None, None)
     }
 
     pub fn publish_with_description<T>(
@@ -372,14 +377,15 @@ impl Ros {
     where
         T: Message,
     {
-        self.publish_common(topic, queue_size, Some(message_description))
+        self.publish_common(topic, queue_size, Some(message_description), None)
     }
 
-    fn publish_common<T>(
+    pub fn publish_common<T>(
         &self,
         topic: &str,
         mut queue_size: usize,
         message_description: Option<RawMessageDescription>,
+        on_handshake: Option<Box<dyn Fn(&HashMap<String, String>) -> bool + Send + Sync>>,
     ) -> Result<Publisher<T>>
     where
         T: Message,
@@ -396,6 +402,7 @@ impl Ros {
             &name,
             queue_size,
             message_description,
+            on_handshake,
         )
     }
 

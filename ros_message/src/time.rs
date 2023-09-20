@@ -1,8 +1,8 @@
 use serde_derive::{Deserialize, Serialize};
 use std::cmp;
 use std::convert::TryInto;
-use std::fmt::Formatter;
 use std::fmt;
+use std::fmt::Formatter;
 use std::hash::{Hash, Hasher};
 use std::ops;
 use std::time;
@@ -134,9 +134,11 @@ impl cmp::Ord for Time {
 impl From<time::SystemTime> for Time {
     fn from(other: time::SystemTime) -> Self {
         let epoch = time::SystemTime::UNIX_EPOCH;
-        let elapsed = other.duration_since(epoch)
+        let elapsed = other
+            .duration_since(epoch)
             .expect("Dates before 1970 are not supported by the ROS time format");
-        let sec = elapsed.as_secs()
+        let sec = elapsed
+            .as_secs()
             .try_into()
             .expect("Dates after 2100 are not supported by the ROS time format");
         Self {
@@ -325,7 +327,8 @@ impl ops::Neg for Duration {
 
 impl From<time::Duration> for Duration {
     fn from(std_duration: time::Duration) -> Self {
-        let sec = std_duration.as_secs()
+        let sec = std_duration
+            .as_secs()
             .try_into()
             .expect("Durations longer than 68 years are not supported by the ROS time format");
         Duration {
@@ -344,9 +347,6 @@ impl From<Duration> for time::Duration {
             nsec += 1_000_000_000;
         }
 
-        Self::new(
-            (other.sec + extra_sec).try_into().unwrap(),
-            nsec as u32,
-        )
+        Self::new((other.sec + extra_sec).try_into().unwrap(), nsec as u32)
     }
 }

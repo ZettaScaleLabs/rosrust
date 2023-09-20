@@ -2,8 +2,8 @@ use super::error::{ErrorKind, Result};
 use super::header;
 use super::util::tcpconnection;
 use super::{ServicePair, ServiceResult};
-use crate::RawMessageDescription;
 use crate::rosmsg::{encode_str, RosMsg};
+use crate::RawMessageDescription;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use error_chain::bail;
 use log::error;
@@ -58,7 +58,13 @@ impl Service {
                 if !service_exists.load(atomic::Ordering::SeqCst) {
                     return tcpconnection::Feedback::StopAccepting;
                 }
-                consume_client::<T, _, _>(&service, &node_name, Arc::clone(&handler), stream, Arc::clone(&description));
+                consume_client::<T, _, _>(
+                    &service,
+                    &node_name,
+                    Arc::clone(&handler),
+                    stream,
+                    Arc::clone(&description),
+                );
                 tcpconnection::Feedback::AcceptNextStream
             }
         };
@@ -79,8 +85,13 @@ enum RequestType {
     Action,
 }
 
-fn consume_client<T, U, F>(service: &str, node_name: &str, handler: Arc<F>, mut stream: U, description: Arc<RawMessageDescription>)
-where
+fn consume_client<T, U, F>(
+    service: &str,
+    node_name: &str,
+    handler: Arc<F>,
+    mut stream: U,
+    description: Arc<RawMessageDescription>,
+) where
     T: ServicePair,
     U: std::io::Read + std::io::Write + Send + 'static,
     F: Fn(T::Request) -> ServiceResult<T::Response> + Send + Sync + 'static,
@@ -102,7 +113,12 @@ where
     }
 }
 
-fn exchange_headers<U>(stream: &mut U, service: &str, node_name: &str, description: &RawMessageDescription) -> Result<RequestType>
+fn exchange_headers<U>(
+    stream: &mut U,
+    service: &str,
+    node_name: &str,
+    description: &RawMessageDescription,
+) -> Result<RequestType>
 where
     U: std::io::Write + std::io::Read,
 {
@@ -128,7 +144,11 @@ fn read_request<U: std::io::Read>(
     Ok(RequestType::Action)
 }
 
-fn write_response<U>(stream: &mut U, node_name: &str, description: &RawMessageDescription) -> Result<()>
+fn write_response<U>(
+    stream: &mut U,
+    node_name: &str,
+    description: &RawMessageDescription,
+) -> Result<()>
 where
     U: std::io::Write,
 {
@@ -201,8 +221,7 @@ where
                 RosMsg::encode(&message, &mut stream)?;
             }
         };
-    }
-    else {
+    } else {
         // Upon failure to read request, send client failure message
         // This can be caused by actual issues or by the client stopping the connection
         stream.write_u8(0)?;

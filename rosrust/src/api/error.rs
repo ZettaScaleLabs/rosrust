@@ -1,7 +1,7 @@
 pub use crate::api::naming::error as naming;
 pub use crate::rosxmlrpc::error as rosxmlrpc;
-pub use crate::rosxmlrpc::ResponseError;
 pub use crate::rosxmlrpc::Response;
+pub use crate::rosxmlrpc::ResponseError;
 pub use crate::tcpros::error as tcpros;
 
 error_chain::error_chain! {

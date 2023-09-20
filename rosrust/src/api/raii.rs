@@ -28,11 +28,19 @@ impl<T: Message> Publisher<T> {
         name: &str,
         queue_size: usize,
         message_description: Option<RawMessageDescription>,
+        on_handshake: Option<
+            Box<dyn Fn(&std::collections::HashMap<String, String>) -> bool + Send + Sync>,
+        >,
     ) -> Result<Self> {
         let message_description =
             message_description.unwrap_or_else(RawMessageDescription::from_message::<T>);
-        let stream =
-            slave.add_publication::<T>(hostname, name, queue_size, message_description.clone())?;
+        let stream = slave.add_publication::<T>(
+            hostname,
+            name,
+            queue_size,
+            message_description.clone(),
+            on_handshake,
+        )?;
 
         let raii = Arc::new(InteractorRaii::new(PublisherInfo {
             master,
@@ -145,7 +153,7 @@ impl Subscriber {
         T: Message,
         H: SubscriptionHandler<T>,
     {
-        let description = description.unwrap_or_else(|| {RawMessageDescription::from_message::<T>()});
+        let description = description.unwrap_or_else(|| RawMessageDescription::from_message::<T>());
         let id = slave.add_subscription::<T, H>(name, queue_size, handler, description.clone())?;
 
         let info = Arc::new(InteractorRaii::new(SubscriberInfo {
@@ -161,7 +169,7 @@ impl Subscriber {
             .register_subscriber(name, &description.msg_type)?;
 
         // find and remove publishers belonging to ourselves to support isolation!
-        publishers.retain(|e| { !e.eq(&info.interactor.slave.uri()) });
+        publishers.retain(|e| !e.eq(&info.interactor.slave.uri()));
 
         if let Err(err) = info
             .interactor

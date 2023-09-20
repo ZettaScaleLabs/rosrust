@@ -1,10 +1,10 @@
 use super::error::{ErrorKind, Result, ResultExt};
 use super::header::{decode, encode};
 use super::{ServicePair, ServiceResult};
-use crate::RawMessageDescription;
 use crate::api::Master;
 use crate::rosmsg::RosMsg;
 use crate::util::FAILED_TO_LOCK;
+use crate::RawMessageDescription;
 use byteorder::{LittleEndian, ReadBytesExt};
 use error_chain::bail;
 use log::error;
@@ -148,12 +148,25 @@ impl<T: ServicePair> Client<T> {
         }
     }
 
-    fn probe_inner(&self, timeout: std::time::Duration, description: RawMessageDescription) -> Result<HashMap<String, String>> {
+    fn probe_inner(
+        &self,
+        timeout: std::time::Duration,
+        description: RawMessageDescription,
+    ) -> Result<HashMap<String, String>> {
         let mut stream = connect_to_tcp_attempt(&self.uri_cache, Some(timeout))?;
-        exchange_probe_headers(&mut stream, &self.info.caller_id, &self.info.service, description)
+        exchange_probe_headers(
+            &mut stream,
+            &self.info.caller_id,
+            &self.info.service,
+            description,
+        )
     }
 
-    pub fn probe_with_description(&self, timeout: std::time::Duration, description: RawMessageDescription) -> Result<HashMap<String, String>> {
+    pub fn probe_with_description(
+        &self,
+        timeout: std::time::Duration,
+        description: RawMessageDescription,
+    ) -> Result<HashMap<String, String>> {
         let probe_result = self.probe_inner(timeout, description);
         if probe_result.is_err() {
             self.uri_cache.clear();
@@ -171,13 +184,17 @@ impl<T: ServicePair> Client<T> {
         self.req_with_description(args, description)
     }
 
-    pub fn req_with_description(&self, args: &T::Request, description: RawMessageDescription) -> Result<ServiceResult<T::Response>> {
+    pub fn req_with_description(
+        &self,
+        args: &T::Request,
+        description: RawMessageDescription,
+    ) -> Result<ServiceResult<T::Response>> {
         Self::request_body(
             args,
             &self.uri_cache,
             &self.info.caller_id,
             &self.info.service,
-            description
+            description,
         )
     }
 
@@ -187,7 +204,13 @@ impl<T: ServicePair> Client<T> {
         ClientResponse {
             handle: thread::spawn(move || {
                 let description = RawMessageDescription::from_message::<T>();
-                Self::request_body(&args, &uri_cache, &info.caller_id, &info.service, description)
+                Self::request_body(
+                    &args,
+                    &uri_cache,
+                    &info.caller_id,
+                    &info.service,
+                    description,
+                )
             }),
         }
     }
@@ -255,7 +278,12 @@ fn read_verification_byte<R: std::io::Read>(reader: &mut R) -> std::io::Result<b
     reader.read_u8().map(|v| v != 0)
 }
 
-fn write_request<U>(mut stream: &mut U, caller_id: &str, service: &str, description: RawMessageDescription) -> Result<()>
+fn write_request<U>(
+    mut stream: &mut U,
+    caller_id: &str,
+    service: &str,
+    description: RawMessageDescription,
+) -> Result<()>
 where
     U: std::io::Write,
 {
@@ -268,7 +296,12 @@ where
     Ok(())
 }
 
-fn write_probe_request<U>(mut stream: &mut U, caller_id: &str, service: &str, description: RawMessageDescription) -> Result<()>
+fn write_probe_request<U>(
+    mut stream: &mut U,
+    caller_id: &str,
+    service: &str,
+    description: RawMessageDescription,
+) -> Result<()>
 where
     U: std::io::Write,
 {
@@ -292,7 +325,12 @@ where
     Ok(fields)
 }
 
-fn exchange_headers<U>(stream: &mut U, caller_id: &str, service: &str, description: RawMessageDescription) -> Result<HashMap<String, String>>
+fn exchange_headers<U>(
+    stream: &mut U,
+    caller_id: &str,
+    service: &str,
+    description: RawMessageDescription,
+) -> Result<HashMap<String, String>>
 where
     U: std::io::Write + std::io::Read,
 {
@@ -300,7 +338,12 @@ where
     read_response::<U>(stream)
 }
 
-fn exchange_probe_headers<U>(stream: &mut U, caller_id: &str, service: &str, description: RawMessageDescription) -> Result<HashMap<String, String>>
+fn exchange_probe_headers<U>(
+    stream: &mut U,
+    caller_id: &str,
+    service: &str,
+    description: RawMessageDescription,
+) -> Result<HashMap<String, String>>
 where
     U: std::io::Write + std::io::Read,
 {

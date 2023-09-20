@@ -30,12 +30,26 @@ fn match_headers(
     fields: &HashMap<String, String>,
     topic: &str,
     message_description: &RawMessageDescription,
+    on_handshake: &Option<Box<dyn Fn(&HashMap<String, String>) -> bool + Send + Sync>>,
 ) -> Result<()> {
-    header::match_field(fields, "md5sum", &message_description.md5sum)
-        .or_else(|e| header::match_field(fields, "md5sum", "*").or(Err(e)))?;
-    header::match_field(fields, "type", &message_description.msg_type)
-        .or_else(|e| header::match_field(fields, "type", "*").or(Err(e)))?;
-    header::match_field(fields, "topic", topic)?;
+    match on_handshake {
+        Some(v) => {
+            if !v(fields) {
+                bail!(ErrorKind::HeaderMismatch(
+                    String::from("*"),
+                    String::from("*"),
+                    String::from("*"),
+                ));
+            }
+        }
+        None => {
+            header::match_field(fields, "md5sum", &message_description.md5sum)
+                .or_else(|e| header::match_field(fields, "md5sum", "*").or(Err(e)))?;
+            header::match_field(fields, "type", &message_description.msg_type)
+                .or_else(|e| header::match_field(fields, "type", "*").or(Err(e)))?;
+            header::match_field(fields, "topic", topic)?;
+        }
+    }
     Ok(())
 }
 
@@ -43,9 +57,10 @@ fn read_request<U: std::io::Read>(
     mut stream: &mut U,
     topic: &str,
     message_description: &RawMessageDescription,
+    on_handshake: &Option<Box<dyn Fn(&HashMap<String, String>) -> bool + Send + Sync>>,
 ) -> Result<String> {
     let fields = header::decode(&mut stream)?;
-    match_headers(&fields, topic, message_description)?;
+    match_headers(&fields, topic, message_description, on_handshake)?;
     let caller_id = fields
         .get("callerid")
         .ok_or_else(|| ErrorKind::HeaderMissingField("callerid".into()))?;
@@ -76,11 +91,12 @@ fn exchange_headers<U>(
     topic: &str,
     pub_caller_id: &str,
     message_description: &RawMessageDescription,
+    on_handshake: &Option<Box<dyn Fn(&HashMap<String, String>) -> bool + Send + Sync>>,
 ) -> Result<String>
 where
     U: std::io::Write + std::io::Read,
 {
-    let caller_id = read_request(&mut stream, topic, message_description)?;
+    let caller_id = read_request(&mut stream, topic, message_description, on_handshake)?;
     write_response(&mut stream, pub_caller_id, topic, message_description)?;
     Ok(caller_id)
 }
@@ -92,12 +108,19 @@ fn process_subscriber<U>(
     last_message: &Mutex<Arc<Vec<u8>>>,
     pub_caller_id: &str,
     message_description: &RawMessageDescription,
+    on_handshake: &Option<Box<dyn Fn(&HashMap<String, String>) -> bool + Send + Sync>>,
 ) -> tcpconnection::Feedback
 where
     U: std::io::Read + std::io::Write + Send,
 {
-    let result = exchange_headers(&mut stream, topic, pub_caller_id, message_description)
-        .chain_err(|| ErrorKind::TopicConnectionFail(topic.into()));
+    let result = exchange_headers(
+        &mut stream,
+        topic,
+        pub_caller_id,
+        message_description,
+        on_handshake,
+    )
+    .chain_err(|| ErrorKind::TopicConnectionFail(topic.into()));
     let caller_id = match result {
         Ok(caller_id) => caller_id,
         Err(err) => {
@@ -133,6 +156,7 @@ impl Publisher {
         queue_size: usize,
         caller_id: &str,
         message_description: RawMessageDescription,
+        on_handshake: Option<Box<dyn Fn(&HashMap<String, String>) -> bool + Send + Sync>>,
     ) -> Result<Publisher>
     where
         U: ToSocketAddrs,
@@ -164,6 +188,7 @@ impl Publisher {
                     &last_message,
                     &caller_id,
                     &message_description,
+                    &on_handshake,
                 )
             }
         };

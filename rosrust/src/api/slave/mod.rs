@@ -43,8 +43,14 @@ impl Slave {
         let mut uri_guard = uri.lock().unwrap();
 
         let (shutdown_tx, shutdown_rx) = kill::channel(kill::KillMode::Sync);
-        let handler =
-            SlaveHandler::new(master_uri, hostname, name, param_cache, shutdown_tx.clone(), uri.clone());
+        let handler = SlaveHandler::new(
+            master_uri,
+            hostname,
+            name,
+            param_cache,
+            shutdown_tx.clone(),
+            uri.clone(),
+        );
         let publications = handler.publications.clone();
         let subscriptions = handler.subscriptions.clone();
         let services = Arc::clone(&handler.services);
@@ -123,8 +129,15 @@ impl Slave {
                 Err(ErrorKind::Duplicate("service".into()).into())
             }
             Entry::Vacant(entry) => {
-                let service =
-                    Service::new::<T, _>(hostname, bind_address, 0, service, &self.name, handler, description)?;
+                let service = Service::new::<T, _>(
+                    hostname,
+                    bind_address,
+                    0,
+                    service,
+                    &self.name,
+                    handler,
+                    description,
+                )?;
                 let api = service.api.clone();
                 entry.insert(service);
                 Ok(api)
@@ -144,12 +157,19 @@ impl Slave {
         topic: &str,
         queue_size: usize,
         message_description: RawMessageDescription,
+        on_handshake: Option<Box<dyn Fn(&HashMap<String, String>) -> bool + Send + Sync>>,
     ) -> error::tcpros::Result<PublisherStream<T>>
     where
         T: Message,
     {
-        self.publications
-            .add(hostname, topic, queue_size, &self.name, message_description)
+        self.publications.add(
+            hostname,
+            topic,
+            queue_size,
+            &self.name,
+            message_description,
+            on_handshake,
+        )
     }
 
     #[inline]

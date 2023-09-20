@@ -38,7 +38,7 @@ impl SlaveHandler {
         name: &str,
         param_cache: ParamCache,
         shutdown_signal: kill::Sender,
-        uri: Arc<Mutex<String>>
+        uri: Arc<Mutex<String>>,
     ) -> SlaveHandler {
         let mut server = Server::default();
 
@@ -178,7 +178,7 @@ impl SlaveHandler {
             // find and remove publishers belonging to ourselves to support isolation!
             let guard = uri.lock().unwrap();
             publishers.retain(|publisher| !publisher.eq(&*guard));
- 
+
             subs.add_publishers(&topic, &name_string, publishers.into_iter())
                 .map_err(|v| {
                     ResponseError::Server(format!("Failed to handle publishers: {}", v))

@@ -1,7 +1,7 @@
 #![recursion_limit = "1024"]
 
+pub use crate::api::handlers::SubscriptionHandler;
 pub use crate::api::raii::{Publisher, Service, Subscriber};
-pub use crate::api::handlers::{SubscriptionHandler};
 pub use crate::api::{error, Clock, Parameter};
 pub use crate::raw_message::{RawMessage, RawMessageDescription};
 #[doc(hidden)]
@@ -22,7 +22,7 @@ pub mod msg;
 mod raw_message;
 #[doc(hidden)]
 pub mod rosmsg;
-mod rosxmlrpc;
+pub mod rosxmlrpc;
 pub mod singleton;
-mod tcpros;
-mod util;
+pub mod tcpros;
+pub mod util;
