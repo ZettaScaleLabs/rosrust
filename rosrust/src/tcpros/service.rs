@@ -6,13 +6,13 @@ use crate::rosmsg::{encode_str, RosMsg};
 use crate::RawMessageDescription;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use error_chain::bail;
-use log::error;
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::io;
 use std::net::{TcpListener, TcpStream};
 use std::sync::{atomic, Arc};
 use std::thread;
+use tracing::error;
 
 pub struct Service {
     pub api: String,

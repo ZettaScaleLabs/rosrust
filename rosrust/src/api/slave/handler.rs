@@ -3,10 +3,10 @@ use super::subscriptions::SubscriptionsTracker;
 use crate::rosxmlrpc::{self, Response, ResponseError, Server};
 use crate::tcpros::Service;
 use crate::util::{kill, FAILED_TO_LOCK};
-use log::{error, info};
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::{Arc, Mutex};
+use tracing::{error, info};
 use xml_rpc::{self, rouille, Params, Value};
 
 pub struct SlaveHandler {

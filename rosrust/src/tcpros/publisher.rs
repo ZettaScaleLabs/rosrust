@@ -6,10 +6,10 @@ use super::{Message, Topic};
 use crate::util::FAILED_TO_LOCK;
 use crate::RawMessageDescription;
 use error_chain::bail;
-use log::error;
 use std::collections::HashMap;
 use std::net::{TcpListener, TcpStream, ToSocketAddrs};
 use std::sync::{atomic, Arc, Mutex};
+use tracing::error;
 
 pub struct Publisher {
     subscriptions: DataStream,

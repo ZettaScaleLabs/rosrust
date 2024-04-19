@@ -3,10 +3,10 @@ use crate::tcpros::{SubscriberRosConnection, Topic};
 use crate::util::FAILED_TO_LOCK;
 use crate::{Message, RawMessageDescription, SubscriptionHandler};
 use error_chain::bail;
-use log::error;
 use std::collections::{BTreeSet, HashMap};
 use std::iter::FromIterator;
 use std::sync::{Arc, Mutex};
+use tracing::error;
 
 #[derive(Clone, Default)]
 pub struct SubscriptionsTracker {

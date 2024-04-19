@@ -6,11 +6,11 @@ use crate::util::lossy_channel::{lossy_channel, LossyReceiver, LossySender};
 use crate::SubscriptionHandler;
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
 use crossbeam::channel::{bounded, select, Receiver, Sender, TrySendError};
-use log::error;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::net::{SocketAddr, TcpStream, ToSocketAddrs};
 use std::sync::Arc;
 use std::thread;
+use tracing::error;
 
 enum DataStreamConnectionChange {
     Connect(

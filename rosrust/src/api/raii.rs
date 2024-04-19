@@ -7,9 +7,9 @@ use crate::error::ErrorKind;
 use crate::rosxmlrpc::Response;
 use crate::tcpros::{Message, PublisherStream, ServicePair, ServiceResult};
 use crate::{RawMessageDescription, SubscriptionHandler};
-use log::error;
 use std::sync::atomic::AtomicUsize;
 use std::sync::Arc;
+use tracing::error;
 
 #[derive(Clone)]
 pub struct Publisher<T: Message> {

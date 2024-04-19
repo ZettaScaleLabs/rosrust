@@ -7,7 +7,6 @@ use crate::util::FAILED_TO_LOCK;
 use crate::RawMessageDescription;
 use byteorder::{LittleEndian, ReadBytesExt};
 use error_chain::bail;
-use log::error;
 use socket2::Socket;
 use std::collections::HashMap;
 use std::io;
@@ -15,6 +14,7 @@ use std::io::{Read, Write};
 use std::net::{TcpStream, ToSocketAddrs};
 use std::sync::{Arc, Mutex};
 use std::thread;
+use tracing::error;
 
 pub struct ClientResponse<T> {
     handle: thread::JoinHandle<Result<ServiceResult<T>>>,

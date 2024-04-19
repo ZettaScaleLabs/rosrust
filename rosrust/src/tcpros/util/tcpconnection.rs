@@ -1,6 +1,6 @@
-use log::error;
 use std::net::{TcpListener, TcpStream};
 use std::thread;
+use tracing::error;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Feedback {

@@ -11,10 +11,10 @@ use crate::util::{kill, FAILED_TO_LOCK};
 use crate::{RawMessageDescription, SubscriptionHandler};
 use crossbeam::channel::TryRecvError;
 use error_chain::bail;
-use log::error;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::thread;
+use tracing::error;
 
 pub struct Slave {
     pub name: String,

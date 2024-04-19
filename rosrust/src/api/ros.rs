@@ -18,7 +18,6 @@ use crate::util::FAILED_TO_LOCK;
 use crate::{RawMessage, RawMessageDescription, SubscriptionHandler};
 use error_chain::bail;
 use lazy_static::lazy_static;
-use log::error;
 use ros_message::{Duration, Time};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -27,6 +26,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::thread::sleep;
 use std::time::Instant;
+use tracing::error;
 use xml_rpc;
 use yaml_rust::{Yaml, YamlLoader};
 

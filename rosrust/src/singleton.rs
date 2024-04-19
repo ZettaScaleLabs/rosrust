@@ -30,10 +30,10 @@ pub fn loop_init(name: &str, wait_millis: u64) {
         if try_init(name).is_ok() {
             break;
         }
-        log::info!("roscore not found. Will retry until it becomes available...");
+        tracing::info!("roscore not found. Will retry until it becomes available...");
         thread::sleep(std::time::Duration::from_millis(wait_millis));
     }
-    log::info!("Connected to roscore");
+    tracing::info!("Connected to roscore");
 }
 
 #[inline]

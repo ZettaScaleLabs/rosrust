@@ -47,7 +47,7 @@ impl<T> LossySender<T> {
         let queue_size: usize = *self.queue_size.lock().expect(FAILED_TO_LOCK);
         while self.data_rx.len() > queue_size {
             if self.data_rx.try_recv().is_err() {
-                log::error!("Failed to remove excess data from message queue");
+                tracing::error!("Failed to remove excess data from message queue");
                 break;
             }
         }
